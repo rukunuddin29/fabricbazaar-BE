@@ -1,0 +1,345 @@
+const Customer = require("../models/customerModels");
+const { upload_on_cloud } = require('../utils/firebase');
+const Otp = require("../models/otpModels")
+const customerController = {};
+const jwt = require("jsonwebtoken");
+const generateOtp = require("../utils/generateOtp");
+const config = require("../config/config");
+const { sendMail } = require('../utils/sendOtpByEmail');
+
+
+customerController.signByPassword = async (req, res) => {
+    const { email, password } = req.body;
+    try {
+        if (!email && !password) {
+            return res.status(404).json({
+                status: false,
+                message: "Please Provide All Details",
+                missingFields: {
+                    email: !email,
+                    password: !password
+                }
+            });
+        }
+        const user = await Customer.findOne({ email });
+
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: "User not found",
+                data: {},
+            });
+        }
+        if (!user.validPassword(password)) {
+            return res.status(401).send({
+                status: false,
+                message: "Invalid credentials",
+                data: {},
+            });
+        }
+        const token = jwt.sign({ userId: user._id, phone: user.email }, config.jwtSecret, { expiresIn: "30d" });
+
+        res.status(200).json({
+            status: true,
+            message: "Login successful",
+            data: user,
+            token
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+};
+
+customerController.signinByOtp = async (req, res) => {
+    const { email } = req.body;
+    try {
+        if (!email) {
+            return res.status(404).json({
+                status: false,
+                message: "Please Provide All Details",
+                missingFields: {
+                    email: !email
+                }
+            });
+        }
+        console.log(email);
+
+        const user = await Customer.findOne({ email });
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: "User not found",
+                data: {},
+            });
+        }
+
+        const otp = generateOtp();
+        await Otp.deleteOne({ email, otp });
+
+        // Send OTP
+        // const otpSent = sendOtp(email, otp);
+        if (!otp) return res.status(500).send({ error: "Failed to send OTP", status: false });
+
+        const otpExpiresAt = new Date(Date.now() + 5 * 60000);
+        const newOtp = new Otp({ email: email, otp, expiresAt: otpExpiresAt });
+        await newOtp.save();
+
+        // await sendMail(email, "Email Verification Otp ", otp);
+
+        return res.status(200).send({
+            message: `OTP sent successfully`,
+            otp: otp,
+            status: true,
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+}
+
+customerController.signup = async (req, res) => {
+    const { email } = req.body;
+    try {
+        if (!email) {
+            return res.status(404).json({
+                status: false,
+                message: "Please Provide All Details",
+            });
+        }
+        const user = await Customer.findOne({ email });
+        if (user) {
+            return res.status(400).json({
+                status: false,
+                message: "User with given mail already exist"
+            });
+        }
+        // const newUser = new Customer({ email });
+        // await newUser.save();
+
+        const otp = generateOtp();
+        await Otp.deleteOne({ email, otp });
+
+        // Send OTP
+        // const otpSent = sendOtp(email, otp);
+        if (!otp) return res.status(500).send({ error: "Failed to send OTP", status: false });
+
+        // Save OTP in database
+        const otpExpiresAt = new Date(Date.now() + 5 * 60000);
+        const newOtp = new Otp({ email: email, otp, expiresAt: otpExpiresAt });
+        await newOtp.save();
+
+        // UnComment when UserName and Password are provided
+        // await sendMail(email, "Email Verification Otp ", otp);
+
+        return res.status(200).send({
+            message: `OTP sent successfully`,
+            otp: otp,
+            status: true,
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+};
+
+customerController.verifyOtp = async (req, res) => {
+    try {
+        const { email, otp, password, phone, dob, name, type } = req.body;
+        if (!email && !otp) {
+            return res.status(404).json({
+                status: false,
+                message: "Please Provide Valid Email and Otp"
+            });
+        }
+        console.log(req.body);
+        if (type == "signin") {
+            if (!password && !name && !dob && !phone) {
+                return res.status(404).json({
+                    status: false,
+                    message: "Please Provide All Details",
+                    missingFields: {
+                        name: !name,
+                        password: !password,
+                        phone: !phone,
+                        dob: !dob
+                    }
+                });
+            }
+            const otpData = await Otp.findOne({ email, otp });
+
+            if (!otpData) {
+                return res.status(404).json({
+                    status: false,
+                    message: "Invalid OTP"
+                });
+            }
+            if (otpData.expiresAt < new Date()) {
+                await Otp.deleteOne({ email, otp });
+                return res.status(400).send({
+                    error: "OTP has expired",
+                    status: false
+                });
+            }
+            // OTP is valid and in time, delete it
+            await Otp.deleteOne({ phone, otp });
+
+            let profile_pic = "";
+            const folderName = `Customers/${email}`;
+            if (req.file) {
+                const imgUrl = await upload_on_cloud(req.file, folderName);
+                if (!imgUrl) return res.status(404).send({ status: false, message: "Image upload failed" });
+                profile_pic = imgUrl;
+            }
+
+            const userRecord = new Customer({
+                email,
+                password,
+                phone,
+                name,
+                dob,
+                profile_pic
+            });
+
+            if (password) {
+                userRecord.password = userRecord.generateHash(password);
+            }
+
+            const user = await userRecord.save();
+
+            // Generate JWT token
+            const token = jwt.sign({ userId: user._id, phone: user.email }, config.jwtSecret, { expiresIn: "30d" });
+
+            return res.status(200).send({
+                message: "OTP verified successfully",
+                status: true,
+                data: user,
+                token
+            });
+        } else if (type == "login") {
+
+            const user = await Customer.findOne({ email });
+            if (!user) {
+                return res.status(404).json({
+                    status: false,
+                    message: `User Not Find with email : ${email}`
+                });
+            }
+            const otpData = await Otp.findOne({ email, otp });
+
+            if (!otpData) {
+                return res.status(404).json({
+                    status: false,
+                    message: "Invalid OTP"
+                });
+            }
+            if (otpData.expiresAt < new Date()) {
+                await Otp.deleteOne({ email, otp });
+                return res.status(400).send({
+                    error: "OTP has expired",
+                    status: false
+                });
+            }
+            // OTP is valid and in time, delete it
+            await Otp.deleteOne({ email, otp });
+
+            if (user.isDeleted) {
+                return res.status(400).send({
+                    message: "You are banned from using these Services",
+                    status: false
+                });
+            }
+
+            const token = jwt.sign({ userId: user._id, phone: user.phone }, config.jwtSecret, { expiresIn: "70d" });
+
+            res.status(200).send({
+                status: true,
+                message: "OTP verified successfully",
+                data: user,
+                token
+            });
+        }
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+
+}
+
+customerController.editCustomerById = async (req, res) => {
+    try {
+        // const { id } = req.params;
+        const { name, street, city, state, pincode, country, dob } = req.body;
+        const id = req.user._id;
+        const user = await Customer.findById(id);
+        // console.log(name);
+
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: "User not found"
+            });
+        }
+        if (user.isDeleted) {
+            return res.status(403).json({
+                status: false,
+                message: "Currently User does not have Access to update the Profile"
+            });
+        }
+
+        let profile_pic = "";
+        const folderName = `Customers/${user.email}`;
+        if (req.file) {
+            const imgUrl = await upload_on_cloud(req.file, folderName);
+            if (!imgUrl) return res.status(404).send({ status: false, message: "Image upload failed" });
+            profile_pic = imgUrl;
+        }
+
+        if (user.address && user.address.length > 0) {
+            const defaultAddressIndex = user.address.findIndex(addr => addr.isDefault === true);
+            if (defaultAddressIndex !== -1) {
+                user.address[defaultAddressIndex].isDefault = false;
+            }
+        }
+        const newAddress = { street, city, state, pincode, country, isDefault: true };
+        user.address.push(newAddress);
+
+        user.name = name || user.name;
+        user.dob = dob || user.dob;
+        user.profile_pic = profile_pic || user.profile_pic
+
+        const updatedUser = await user.save();
+
+        res.status(200).json({
+            status: true,
+            message: "User updated successfully",
+            data: updatedUser
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+}
+
+module.exports = customerController;
