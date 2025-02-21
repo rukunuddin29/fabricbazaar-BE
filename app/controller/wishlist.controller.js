@@ -1,5 +1,6 @@
 const Customer = require("../models/customerModels");
 const Cart = require("../models/cartModels");
+const Wishlist = require("../models/wishlistModels");
 const Product = require("../models/productModels");
 
 const wishlistControllers = {};
@@ -18,28 +19,26 @@ wishlistControllers.add = async (req, res) => {
         if (!product) {
             return res.status(404).send({ status: false, msg: "Product not found." });
         }
-
         let user = await Customer.findOne({ _id });
+        const wishlistId = user.wishlist;
+        const wishlist = await Wishlist.findById(wishlistId);
 
-        // if (!user) {
-        //     user = await Wishlist.create({ userId, products: [{ productId }] });
-        // } else {
-        //     const productExists = wishlist.products.find((item) => item.productId.toString() === productId);
-        //     if (productExists) {
-        //         return res.status(400).send({ status: false, msg: "Product already in wishlist." });
-        //     }
-        //     wishlist.products.push({ productId });
-        //     await wishlist.save();
-        // }
-        const productExists = user.wishlist.find((item) => item.productId.toString() === productId);
-        if (productExists) {
-            return res.status(400).send({ status: false, msg: "Product already in wishlist." });
+        const addedAt = new Date();
+        if (!wishlist) {
+            wishlist = await Wishlist.create({ userId, products: [{ productId, productColor: color }], addedAt });
+
+        } else {
+            const productExists = wishlist.products.find((item) =>
+                item.productId.toString() === productId && item.productColor === color
+            );
+            if (productExists) {
+                return res.status(400).send({ status: false, msg: "Product with this color already in wishlist." });
+            }
+            wishlist.products.push({ productId, productColor: color });
+            await wishlist.save();
         }
-        user.wishlist.push({ productId, productColor: color, addedAt: new Date() });
 
-        await user.save();
-
-        return res.status(200).send({ status: true, msg: "Product added to wishlist.", data: user });
+        return res.status(200).send({ status: true, msg: "Product added to wishlist.", data: wishlist });
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
@@ -49,24 +48,25 @@ wishlistControllers.add = async (req, res) => {
 // Remove product from wishlist
 wishlistControllers.remove = async (req, res) => {
     try {
-        const { productId } = req.body;
+        const { id } = req.query;
         const _id = req.user._id;
 
-        if (!productId) {
+        if (!id) {
             return res.status(400).send({ status: false, msg: "Product ID is required." });
         }
 
         const user = await Customer.findOne({ _id });
+        const wishlist = await Wishlist.findById(user.wishlist)
 
-        const productIndex = user.wishlist.findIndex((item) => item.productId.toString() === productId);
+        const productIndex = wishlist.products.findIndex((item) => item._id.toString() === id);
         if (productIndex === -1) {
             return res.status(404).send({ status: false, msg: "Product not found in wishlist." });
         }
 
-        user.wishlist.splice(productIndex, 1);
-        await user.save();
+        wishlist.products.splice(productIndex, 1);
+        await wishlist.save();
 
-        return res.status(200).send({ status: true, msg: "Product removed from wishlist.", data: user });
+        return res.status(200).send({ status: true, msg: "Product removed from wishlist." });
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
@@ -77,77 +77,135 @@ wishlistControllers.remove = async (req, res) => {
 wishlistControllers.getAll = async (req, res) => {
     try {
         const _id = req.user._id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
 
-        //get productId from user.wishList and return all these infomration from Product
-        const user = await Customer.findOne({ _id }).populate({
-            path: "wishlist.productId",
-            select: "name price description productImages averageRating discountedPrice",
-        });
+        const user = await Customer.findOne(_id);
+        const wishlistId = user.wishlist;
+        const wishlist = await Wishlist.findOne({ _id: wishlistId })
+            .populate({
+                path: "products.productId",
+                select: "name description productVarieties averageRating productId",
+            });
 
-        const userWishlist = user.wishlist.map(item => {
+        const totalItems = wishlist.products.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        const paginatedProducts = wishlist.products.slice(skip, skip + limit);
+
+        const userWishlist = paginatedProducts.map(item => {
             if (!item.productId) return null;
 
-            const selectedImages = item.productId.productImages.find(
-                img => img.color === item.productColor
-            );
+            let selectedVarieties = item.productId.productVarieties;
+            if (item.productColor) {
+                selectedVarieties = item.productId.productVarieties.find(
+                    img => img.color === item.productColor
+                );
+            }
 
             return {
+                id: item.productId.productId,
                 productId: item.productId._id,
                 name: item.productId.name,
-                price: item.productId.price,
                 description: item.productId.description,
                 averageRating: item.productId.averageRating,
-                discountedPrice: item.productId.discountedPrice,
-                productColor: item.productColor,
-                productImages: selectedImages ? selectedImages.images : [],
+                productVarieties: selectedVarieties,
+                // discountedPrice: item.productId.discountedPrice,
+                // productImages: selectedImages ? selectedImages.images : [],
             };
         }).filter(item => item !== null);
 
-        return res.status(200).send({ status: true, msg: "Wishlist fetched successfully.", data: userWishlist });
+        return res.status(200).send({
+            status: true,
+            msg: "Wishlist fetched successfully.",
+            pagination: {
+                currentPage: page,
+                totalPages,
+                totalItems,
+                limit
+            },
+            data: userWishlist
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ status: false, msg: error.message, meta: error });
+    }
+};
+
+// Move product from wishlist to cart
+wishlistControllers.moveToCart = async (req, res) => {
+    try {
+        const { productId, quantity, color } = req.body;
+        const _id = req.user._id;
+
+        if (!productId || !quantity) {
+            return res.status(400).send({
+                status: false,
+                message: "Please fill all the required fields.",
+                missingFields: {
+                    ...(productId ? {} : { name: "ProductId Is Required" }),
+                    ...(quantity ? {} : { quantity: "Quantity Is Required" })
+                }
+            });
+        }
+
+        const user = await Customer.findOne({ _id });
+        const wishlist = await Wishlist.findById(user.wishlist);
+        const cart = await Cart.findById(user.cart);
+
+        const productIndex = wishlist.products.findIndex((item) => item.productId.toString() === productId);
+        if (productIndex === -1) {
+            return res.status(404).send({ status: false, msg: "Product not found in wishlist." });
+        }
+
+        if (!wishlist.products[productIndex].productColor || !color) {
+            return res.status(404).send({ status: false, msg: "Color is Required" });
+        }
+
+        // if (!cart) {
+        //     cart = await Cart.create({ userId, products: [{ productId, quantity: quantity, productColor: color }] });
+        // } else {
+        // }
+        // const productStock = wishlist.products[productIndex].productVarieties.stock;
+        const product = await Product.findById(productId).select("productVarieties");
+        const productStock = product.productVarieties.find((item) => item.color === color).stock;
+
+        if (productStock === 0) {
+            return res.status(400).send({ status: false, msg: "Product is out of stock." });
+        }
+        const productInCart = cart.products.find((item) =>
+            item.productId.toString() === productId && item.productColor === color
+        );
+        if (productInCart) {
+            const quantityInCart = productInCart.quantity;
+            const totalQuantity = quantityInCart + quantity;
+
+            if (totalQuantity > productStock) {
+                if ((totalQuantity - productStock) >= 0) {
+                    productInCart.quantity = totalQuantity;
+                } else {
+                    productInCart.quantity += productStock;
+                }
+            }
+            // productInCart.quantity += 1;
+        } else {
+            cart.products.push({ productId, quantity: quantity, productColor: color });
+        }
+        await cart.save();
+
+        wishlist.products.splice(productIndex, 1);
+        await wishlist.save();
+
+        return res.status(200).send({
+            status: true,
+            msg: "Product moved to cart.",
+            // data: { cart, wishlist }
+        });
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
     }
 };
-
-// Move product from wishlist to cart
-// wishlistControllers.moveToCart = async (req, res) => {
-//     try {
-//         const { productId } = req.body;
-//         const _id = req.user._id;
-
-//         if (!productId) {
-//             return res.status(400).send({ status: false, msg: "Product ID is required." });
-//         }
-
-//         const user = await Customer.findOne({ _id });
-
-//         const productIndex = user.wishlist.findIndex((item) => item.productId.toString() === productId);
-//         if (productIndex === -1) {
-//             return res.status(404).send({ status: false, msg: "Product not found in wishlist." });
-//         }
-
-//         let cart = await Cart.findOne({ userId });
-//         if (!cart) {
-//             cart = await Cart.create({ userId, products: [{ productId, quantity: 1 }] });
-//         } else {
-//             const productInCart = cart.products.find((item) => item.productId.toString() === productId);
-//             if (productInCart) {
-//                 productInCart.quantity += 1;
-//             } else {
-//                 cart.products.push({ productId, quantity: 1 });
-//             }
-//         }
-//         await cart.save();
-
-//         wishlist.products.splice(productIndex, 1);
-//         await wishlist.save();
-
-//         return res.status(200).send({ status: true, msg: "Product moved to cart.", data: { cart, wishlist } });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).send({ status: false, msg: error.message });
-//     }
-// };
 
 module.exports = wishlistControllers;

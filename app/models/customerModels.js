@@ -1,41 +1,33 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt")
 
-const wishlistSchema = new mongoose.Schema({
-    productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-    productColor: { type: String },
-    addedAt: { type: Date, default: Date.now },
-});
-
 const CustomerSchema = new mongoose.Schema(
     {
+        customerId: { type: String, required: true, unique: true },
         name: { type: String, required: true, trim: true, },
         email: { type: String, required: true, unique: true, trim: true },
         password: { type: String, required: true },
         dob: { type: String, required: true, },
         phone: { type: String },
         profile_pic: { type: String },
-        address: [{
-            street: String,
-            city: String,
-            state: String,
-            pincode: String,
-            country: { type: String, default: "India" },
-            alternativePhoneNumber: { type: Number },
-            isDefault: { type: Boolean, default: false, },
+        address: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
+        wishlist: { type: mongoose.Schema.Types.ObjectId, ref: "Wishlist" },
+        cart: { type: mongoose.Schema.Types.ObjectId, ref: "Cart" },
+        orderHistory: [{
+            orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
+            // status: { type: String, default: "Processing", enum: ["Processing", "Shipped", "Delivered", "Cancelled"] },
+            // purchaseAt: { type: String }
         }],
-        orderHistory: [
-            {
-                orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
-                status: { type: String, default: "Processing", enum: ["Processing", "Shipped", "Delivered", "Cancelled"] },
-                purchaseAt: { type: String }
-            }
-        ],
-        wishlist: [wishlistSchema],
-        cart: [{
-            productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-            quantity: { type: Number, default: 1 },
-        }],
+        // address: [{
+
+        //     street: String,
+        //     city: String,
+        //     state: String,
+        //     pincode: String,
+        //     country: { type: String, default: "India" },
+        //     alternativePhoneNumber: { type: Number },
+        //     isDefault: { type: Boolean, default: false, },
+        // }],
         isDeleted: { type: Boolean, default: false },
         isActive: { type: Boolean, default: true, },
     },

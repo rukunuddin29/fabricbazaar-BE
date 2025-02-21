@@ -182,6 +182,7 @@ productController.getAll = async (req, res) => {
 
         // Fetch filtered products
         const data = await Product.find(filter, null, options)
+            .populate("availableCoupons", "code discount")
             .select("-createdAt -updatedAt -__v");
 
         // const data = await Product.find().skip(skip).limit(limit);
@@ -235,13 +236,13 @@ productController.editProductById = async (req, res) => {
         const imageUrls = [];
         const folderName = `Products/${product.name}(${product.productId}) ${date}`;
 
-        for (const file of productImages) {
-            const imgUrl = await upload_on_cloud(file, folderName);
-            if (!imgUrl) return res.status(404).send({ status: false, message: "Image upload failed" });
-            imageData = { _id: new mongoose.Types.ObjectId(), url: imgUrl }
-            imageUrls.push(imageData);
+        if (productImages) {
+            for (const file of productImages) {
+                const imgUrl = await upload_on_cloud(file, folderName);
+                if (!imgUrl) return res.status(404).send({ status: false, message: "Image upload failed" });
+                imageUrls.push(imgUrl);
+            }
         }
-
         product.productVarieties[existingColorIndex].images.push(...imageUrls);
         product.productVarieties[existingColorIndex].pricepermeter = price || product.productVarieties[existingColorIndex].pricepermeter;
         product.productVarieties[existingColorIndex].stock = stock || product.productVarieties[existingColorIndex].stock;

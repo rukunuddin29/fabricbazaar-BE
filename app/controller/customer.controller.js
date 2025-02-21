@@ -6,6 +6,9 @@ const jwt = require("jsonwebtoken");
 const generateOtp = require("../utils/generateOtp");
 const config = require("../config/config");
 const { sendMail } = require('../utils/sendOtpByEmail');
+const Wishlist = require("../models/wishlistModels");
+const Cart = require("../models/cartModels");
+const Address = require("../models/addressModels");
 
 
 customerController.signByPassword = async (req, res) => {
@@ -21,8 +24,11 @@ customerController.signByPassword = async (req, res) => {
                 }
             });
         }
-        const user = await Customer.findOne({ email });
-
+        const user = await Customer.findOne({ email })
+            .populate({
+                path: "address",
+                select: "savedAddresses"
+            })
         if (!user) {
             return res.status(404).json({
                 status: false,
@@ -37,6 +43,7 @@ customerController.signByPassword = async (req, res) => {
                 data: {},
             });
         }
+
         const token = jwt.sign({ userId: user._id, phone: user.email }, config.jwtSecret, { expiresIn: "30d" });
 
         res.status(200).json({
@@ -204,7 +211,11 @@ customerController.verifyOtp = async (req, res) => {
                 profile_pic = imgUrl;
             }
 
+            const customerCount = await Customer.countDocuments();
+            let customerId = `FBCUS${String(customerCount + 1).padStart(4, '0')}`;
+
             const userRecord = new Customer({
+                customerId,
                 email,
                 password,
                 phone,
@@ -219,6 +230,27 @@ customerController.verifyOtp = async (req, res) => {
 
             const user = await userRecord.save();
 
+            if (user) {
+                const address = new Address({
+                    userId: user._id,
+                    savedAddresses: []
+                })
+                const wishlist = new Wishlist({
+                    userId: user._id,
+                    products: []
+                });
+                const cart = new Cart({
+                    userId: user._id,
+                    products: []
+                });
+                await address.save();
+                await wishlist.save();
+                await cart.save();
+                user.address = address._id;
+                user.wishlist = wishlist._id;
+                user.cart = cart._id;
+                await user.save();
+            }
             // Generate JWT token
             const token = jwt.sign({ userId: user._id, phone: user.email }, config.jwtSecret, { expiresIn: "30d" });
 

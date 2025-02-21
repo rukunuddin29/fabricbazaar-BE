@@ -4,10 +4,11 @@ const Coupon = require("./couponModels");
 
 const cartSchema = new mongoose.Schema(
 	{
-		customerId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true },
+		userId: { type: mongoose.Schema.Types.ObjectId, ref: "Customer", required: true },
 		products: [
 			{
 				productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+				productColor: { type: String },
 				quantity: { type: Number, required: true, default: 1 },
 				itemPrice: { type: Number },
 				couponDiscountedPrice: { type: Number },
@@ -31,8 +32,9 @@ cartSchema.pre("save", async function (next) {
 	// Calculate itemPrice for each product
 	for (const item of cart.products) {
 		const product = await Product.findById(item.productId);
+		const productVariety = product.productVarieties.find(variety => variety.color === item.productColor);
 		if (product) {
-			item.itemPrice = product.discountedPrice * item.quantity;
+			item.itemPrice = productVariety?.pricepermeter * item.quantity;
 		}
 	}
 
