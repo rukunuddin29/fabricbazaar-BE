@@ -8,6 +8,7 @@ const path = require("path");
 const fs = require("fs");
 const router = express.Router();
 const connectDB = require("./app/config/connectDB");
+const bodyParser = require('body-parser')
 
 // Connect to MongoDB
 connectDB();
@@ -19,8 +20,8 @@ connectDB();
 
 app.use(cors());
 app.options("*", cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(helmet());
 app.use(morgan("common"));
 app.use("/api", router);
@@ -35,7 +36,7 @@ routeFiles.forEach((routeFile) => {
     }
 });
 
-app.get("/api/health", (req, res) => res.send({ msg: "Fabric Bazar Backend are running and lived at 17-02-2025 !" }));
+app.get("/api/health", (req, res) => res.send({ msg: "Fabric Bazar Backend are running and lived at 22-02-2025 !" }));
 
 app.listen(config.port, () => {
     console.log(`Server is running on port ${config.port}`);
