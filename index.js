@@ -36,7 +36,7 @@ routeFiles.forEach((routeFile) => {
     }
 });
 
-app.get("/api/health", (req, res) => res.send({ msg: "Fabric Bazar Backend are running and lived at 22-02-2025 !" }));
+app.get("/api/health", (req, res) => res.send({ msg: "Fabric Bazar Backend are running and lived at 18-03-2025 !" }));
 
 app.listen(config.port, () => {
     console.log(`Server is running on port ${config.port}`);

@@ -4,6 +4,7 @@ const { upload_on_cloud } = require('../utils/firebase')
 const Coupon = require('../models/couponModels');
 const Category = require("../models/categoryModels");
 const Product = require("../models/productModels");
+const Customer = require('../models/customerModels');
 
 const productController = {};
 
@@ -93,10 +94,9 @@ productController.addProduct = async (req, res) => {
             return res.status(400).json({ status: false, message: "Product images are required." });
         }
 
-        const date = moment().format("DD-MM-YYYY");
         const { productImages } = req.files;
         const imageUrls = [];
-        const folderName = `Products/${name}(${productId}) ${date}/${color}`;
+        const folderName = `Products/${name}(${productId})/${color}`;
         for (const file of productImages) {
             const imgUrl = await upload_on_cloud(file, folderName);
             if (!imgUrl) return res.status(404).send({ status: false, message: "Image upload failed" });
@@ -183,6 +183,7 @@ productController.getAll = async (req, res) => {
         // Fetch filtered products
         const data = await Product.find(filter, null, options)
             .populate("availableCoupons", "code discount")
+            .populate("rating.userId", "name profile_pic")
             .select("-createdAt -updatedAt -__v");
 
         // const data = await Product.find().skip(skip).limit(limit);
@@ -231,10 +232,8 @@ productController.editProductById = async (req, res) => {
         if (existingColorIndex === -1) {
             return res.status(404).send({ status: false, message: "Color Not Found" });
         }
-
-        const date = moment().format("DD-MM-YYYY");
         const imageUrls = [];
-        const folderName = `Products/${product.name}(${product.productId}) ${date}`;
+        const folderName = `Products/${product.name}(${product.productId})`;
 
         if (productImages) {
             for (const file of productImages) {
@@ -296,7 +295,7 @@ productController.addNewVariety = async (req, res) => {
 
         const date = moment().format("DD-MM-YYYY");
         const imageUrls = [];
-        const folderName = `Products/${product.name}(${product.productId}) ${date}/${color}`;
+        const folderName = `Products/${product.name}(${product.productId})/${color}`;
 
         for (const file of productImages) {
             const imgUrl = await upload_on_cloud(file, folderName);
@@ -453,5 +452,76 @@ productController.removeCoupon = async (req, res) => {
         res.status(500).send({ status: false, msg: error.message });
     }
 };
+
+productController.addReview = async (req, res) => {
+    try {
+        const { productId, rating, review } = req.body;
+        const userId = req.user._id;
+
+        if (!mongoose.Types.ObjectId.isValid(productId)) {
+            return res.status(400).send({ status: false, msg: "Invalid product ID ." });
+        }
+
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).send({ status: false, msg: "Product not found." });
+
+        const user = await Customer.findById(userId);
+
+        const imageUrls = [];
+
+        if (req.files) {
+            const { reviewImages } = req.files;
+            const folderName = `Products/${product.name}(${product.productId})/Reviews/${user.name} ${user.customerId || user._id}`;
+
+            for (const file of reviewImages) {
+                const imgUrl = await upload_on_cloud(file, folderName);
+                if (!imgUrl) return res.status(404).send({ status: false, message: "Image upload failed" });
+                imageUrls.push(imgUrl);
+            }
+        }
+
+        const newReview = {
+            userId: userId,
+            value: rating,
+            review: review,
+            images: imageUrls
+        };
+
+        product.rating.push(newReview);
+        product.calculateAverageRating();
+        await product.save();
+
+        return res.status(200).send({ status: true, msg: "Review added successfully.", data: product });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ status: false, msg: error.message });
+    }
+}
+
+productController.deleteReview = async (req, res) => {
+    try {
+        const { productId, reviewId, userId } = req.body;
+
+        if (!mongoose.Types.ObjectId.isValid(productId) || !mongoose.Types.ObjectId.isValid(reviewId)) {
+            return res.status(400).send({ status: false, msg: "Invalid product ID or review ID." });
+        }
+
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).send({ status: false, msg: "Product not found." });
+
+        const reviewIndex = product.rating.findIndex(review => review._id.toString() === reviewId && review.userId.toString() === userId);
+        if (reviewIndex === -1) {
+            return res.status(404).send({ status: false, msg: "Review not found." });
+        }
+
+        product.rating.splice(reviewIndex, 1);
+        await product.save();
+
+        return res.status(200).send({ status: true, msg: "Review deleted successfully.", data: product });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ status: false, msg: error.message });
+    }
+}
 
 module.exports = productController;

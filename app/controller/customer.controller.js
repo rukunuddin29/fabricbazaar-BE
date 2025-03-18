@@ -9,6 +9,7 @@ const { sendMail } = require('../utils/sendOtpByEmail');
 const Wishlist = require("../models/wishlistModels");
 const Cart = require("../models/cartModels");
 const Address = require("../models/addressModels");
+const axios = require("axios");
 
 
 customerController.signByPassword = async (req, res) => {
@@ -171,17 +172,16 @@ customerController.verifyOtp = async (req, res) => {
                 message: "Please Provide Valid Email and Otp"
             });
         }
-        console.log(req.body);
+        // console.log(req.body);
         if (type == "signin") {
-            if (!password && !name && !dob && !phone) {
+            if (!password && !name && !phone) {
                 return res.status(404).json({
                     status: false,
                     message: "Please Provide All Details",
                     missingFields: {
                         name: !name,
                         password: !password,
-                        phone: !phone,
-                        dob: !dob
+                        phone: !phone
                     }
                 });
             }
@@ -231,18 +231,9 @@ customerController.verifyOtp = async (req, res) => {
             const user = await userRecord.save();
 
             if (user) {
-                const address = new Address({
-                    userId: user._id,
-                    savedAddresses: []
-                })
-                const wishlist = new Wishlist({
-                    userId: user._id,
-                    products: []
-                });
-                const cart = new Cart({
-                    userId: user._id,
-                    products: []
-                });
+                const address = new Address({ userId: user._id, savedAddresses: [] })
+                const wishlist = new Wishlist({ userId: user._id, products: [] });
+                const cart = new Cart({ userId: user._id, products: [] });
                 await address.save();
                 await wishlist.save();
                 await cart.save();
@@ -318,7 +309,7 @@ customerController.verifyOtp = async (req, res) => {
 customerController.editCustomerById = async (req, res) => {
     try {
         // const { id } = req.params;
-        const { name, street, city, state, pincode, country, dob } = req.body;
+        const { name, dob } = req.body;
         const id = req.user._id;
         const user = await Customer.findById(id);
         // console.log(name);
@@ -344,15 +335,6 @@ customerController.editCustomerById = async (req, res) => {
             profile_pic = imgUrl;
         }
 
-        if (user.address && user.address.length > 0) {
-            const defaultAddressIndex = user.address.findIndex(addr => addr.isDefault === true);
-            if (defaultAddressIndex !== -1) {
-                user.address[defaultAddressIndex].isDefault = false;
-            }
-        }
-        const newAddress = { street, city, state, pincode, country, isDefault: true };
-        user.address.push(newAddress);
-
         user.name = name || user.name;
         user.dob = dob || user.dob;
         user.profile_pic = profile_pic || user.profile_pic
@@ -373,5 +355,69 @@ customerController.editCustomerById = async (req, res) => {
         });
     }
 }
+
+customerController.googleAuth = async (req, res) => {
+    try {
+        const { token } = req.body;
+        // Add verification of Google OAuth token using axios request
+        let googleRes;
+
+        googleRes = await axios.get('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        }).catch(error => {
+            throw new Error('Failed to verify Google token: ' + error.message);
+        });
+
+        const { sub, email, name, picture } = googleRes.data;
+
+        let user = await Customer.findOne({ email });
+
+
+        if (!user) {
+            // Create new user if not exists
+            const customerCount = await Customer.countDocuments();
+            let customerId = `FBCUS${String(customerCount + 1).padStart(4, '0')}`;
+            user = new Customer({
+                customerId,
+                name,
+                email,
+                password: "google-auth",
+                profile_pic: picture,
+                googleID: sub,
+            });
+
+            const address = new Address({ userId: user._id, savedAddresses: [] })
+            const wishlist = new Wishlist({ userId: user._id, products: [] });
+            const cart = new Cart({ userId: user._id, products: [] });
+            await address.save();
+            await wishlist.save();
+            await cart.save();
+            user.address = address._id;
+            user.wishlist = wishlist._id;
+            user.cart = cart._id;
+            await user.save();
+        }
+
+        // Generate JWT Token
+        const authToken = jwt.sign({ userId: user._id, email: user.email }, config.jwtSecret, { expiresIn: "30d" });
+
+        return res.status(200).send({
+            message: "Google Verification SuccessFul",
+            status: true,
+            data: user,
+            token: authToken
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+}
+
 
 module.exports = customerController;

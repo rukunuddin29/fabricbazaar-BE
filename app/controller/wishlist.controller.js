@@ -86,14 +86,12 @@ wishlistControllers.getAll = async (req, res) => {
         const wishlist = await Wishlist.findOne({ _id: wishlistId })
             .populate({
                 path: "products.productId",
-                select: "name description productVarieties averageRating productId",
             });
 
         const totalItems = wishlist.products.length;
         const totalPages = Math.ceil(totalItems / limit);
 
         const paginatedProducts = wishlist.products.slice(skip, skip + limit);
-
         const userWishlist = paginatedProducts.map(item => {
             if (!item.productId) return null;
 
@@ -125,7 +123,7 @@ wishlistControllers.getAll = async (req, res) => {
                 totalItems,
                 limit
             },
-            data: userWishlist
+            data: wishlist
         });
     } catch (error) {
         console.error(error);

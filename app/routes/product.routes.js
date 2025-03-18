@@ -27,4 +27,12 @@ module.exports = (router) => {
     //add a coupon to a product
     router.post("/product/addCoupon", verifyAdminToken, productController.addCoupon);
     router.post("/product/removeCoupon", verifyAdminToken, productController.removeCoupon);
+
+    // Reviews Api's
+
+    router.post('/product/addReview', upload.fields([
+        { name: "reviewImages", maxCount: 10 },
+    ]), verifyUserToken, productController.addReview);
+
+    router.delete('/product/deleteReview', verifyAdminToken, productController.deleteReview);
 }

@@ -13,8 +13,11 @@ cartController.getCart = async (req, res) => {
 
         const cart = await Cart.findById(User.cart).populate(
             "products.productId",
-            "name price description productVarities averageRating "
+            "name description productVarieties averageRating "
         );
+
+        // cart.products.map((item) => { console.log(item.productId) })
+        // console.log(cart);
 
         if (!cart) {
             return res.status(200).send({ status: true, msg: "Your Cart is empty" });
@@ -277,5 +280,26 @@ cartController.applyCoupon = async (req, res) => {
     }
 };
 
+cartController.getTotalPrice = async (req, res) => {
+    try {
+        const _id = req.user._id;
+
+        const user = await Customer.findById(_id);
+        const cart = await Cart.findById(user.cart);
+
+        if (!cart) {
+            return res.status(400).send({ status: false, msg: "Cart not found." });
+        }
+
+        const totalPrice = cart.products.reduce((sum, item) => {
+            return sum + (item.itemPrice - item.couponDiscountedPrice);
+        }, 0);
+
+        return res.status(200).send({ status: true, msg: "Total price fetched successfully.", totalPrice });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ status: false, msg: error.message });
+    }
+}
 
 module.exports = cartController; 

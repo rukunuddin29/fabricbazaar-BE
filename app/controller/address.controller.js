@@ -22,20 +22,43 @@ addressControllers.getAll = async (req, res) => {
 addressControllers.add = async (req, res) => {
     try {
         const _id = req.user._id;
-        const { state, city, pinCode, address, alternativePhoneNumber } = req.body;
+        const { state, city, pinCode, address, country, alternativePhoneNumber, name, tag } = req.body;
+
+        if (!state || !city || !pinCode || !address || !country) {
+            return res.status(400).send({
+                status: false,
+                msg: "Please fill all the fields.",
+                missingFields: {
+                    state: !state,
+                    city: !city,
+                    address: !address,
+                    country: !country,
+                    pinCode: !pinCode
+                }
+            });
+        }
 
         let userAddresses = await Address.findOne({ userId: _id });
         const user = await Customer.findById(_id);
 
         const newAddress = {
+            name,
+            tag,
             state,
             address,
+            country,
             city,
             pinCode,
             alternativePhoneNumber,
-            selected: !userAddresses || userAddresses.savedAddresses.length === 0,
+            selected: true,
         };
 
+        // set all address selected false
+        if (userAddresses) {
+            userAddresses.savedAddresses.forEach(addr => {
+                addr.selected = false;
+            });
+        }
         if (userAddresses) {
             userAddresses.savedAddresses.push(newAddress);
             await userAddresses.save();
@@ -83,6 +106,7 @@ addressControllers.delete = async (req, res) => {
 addressControllers.setSelectedAddress = async (req, res) => {
     try {
         const { addressId } = req.params;
+        console.log(addressId)
         const userAddresses = await Address.findById(req.user.address);
 
         if (!userAddresses) {
@@ -102,7 +126,9 @@ addressControllers.setSelectedAddress = async (req, res) => {
 
         await userAddresses.save();
 
-        return res.status(200).send({ status: true, msg: "Selected address set successfully." });
+        // console.log(selectedAddress)
+
+        return res.status(200).send({ status: true, msg: "Selected address set successfully.", selectedAddress });
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
@@ -114,7 +140,7 @@ addressControllers.edit = async (req, res) => {
     try {
         const { addressId } = req.params;
         const _id = req.user._id;
-        const { state, city, pinCode, address, alternativePhoneNumber } = req.body;
+        const { state, city, pinCode, address, alternativePhoneNumber, country, name, tag } = req.body;
 
         const userAddresses = await Address.findOne({ userId: _id });
 
@@ -128,9 +154,12 @@ addressControllers.edit = async (req, res) => {
         }
 
         // Update the address fields
+        addressToEdit.name = name;
+        addressToEdit.tag = tag;
         addressToEdit.state = state;
         addressToEdit.city = city;
         addressToEdit.pinCode = pinCode;
+        addressToEdit.country = country;
         addressToEdit.address = address;
         addressToEdit.alternativePhoneNumber = alternativePhoneNumber;
 

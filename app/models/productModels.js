@@ -57,7 +57,7 @@ const productSchema = new mongoose.Schema({
 productSchema.methods.calculateAverageRating = function () {
     if (this.rating.length > 0) {
         const total = this.rating.reduce((sum, r) => sum + r.value, 0);
-        this.averageRating = total / this.rating.length;
+        this.averageRating = parseFloat((total / this.rating.length).toFixed(1));
     } else {
         this.averageRating = 0;
     }
@@ -75,3 +75,5 @@ productSchema.pre("save", function (next) {
 });
 
 module.exports = mongoose.model("Product", productSchema);
+
+

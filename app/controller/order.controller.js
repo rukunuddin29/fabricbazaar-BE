@@ -28,7 +28,7 @@ orderController.create = async (req, res) => {
             state: address[0].state,
             pinCode: address[0].pinCode,
             phone: address[0].alternativePhoneNumber,
-            fullName: Customer.name
+            fullName: address[0]?.name || customer.name
         }
 
         if (!shippingAddress.address || !shippingAddress.city || !shippingAddress.state || !shippingAddress.pinCode || !shippingAddress.phone || !shippingAddress.fullName) {
