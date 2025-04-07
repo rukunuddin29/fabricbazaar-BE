@@ -5,6 +5,7 @@ const Coupon = require('../models/couponModels');
 const Category = require("../models/categoryModels");
 const Product = require("../models/productModels");
 const Customer = require('../models/customerModels');
+const Order = require('../models/orderModels');
 
 const productController = {};
 
@@ -509,6 +510,10 @@ productController.addReview = async (req, res) => {
 
         if (!mongoose.Types.ObjectId.isValid(productId)) {
             return res.status(400).send({ status: false, msg: "Invalid product ID ." });
+        }
+
+        if (!order.items.some(item => item.product.toString() === productId)) {
+            return res.status(404).send({ status: false, msg: "Product not found in this order." });
         }
 
         const product = await Product.findById(productId);
