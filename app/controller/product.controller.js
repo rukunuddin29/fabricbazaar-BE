@@ -134,10 +134,10 @@ productController.addProduct = async (req, res) => {
 
 productController.getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 25;
-    const { category, subCategoryName, fields, color, priceRange, stock } = req.query;
+    const limit = parseInt(req.query.limit) || 20;
+    const { category, subCategory, fields, color, priceRange, stock, rating, newArrival } = req.query;
 
-    console.log(page, limit);
+    // console.log(color);
     try {
         let skip = (page - 1) * limit;
 
@@ -148,30 +148,36 @@ productController.getAll = async (req, res) => {
         const filter = {};
 
         // Filter by category (array of category names)
-        // if (Array.isArray(category) && category.length > 0) {
-        //     const categoryDocs = await Category.find({ name: { $in: category } }, "_id");
-        //     const categoryIds = categoryDocs.map(cat => cat._id);
-        //     filter["category.category"] = { $in: categoryIds };
-        // }
-
+        if (category) {
+            let categoryArray = Array.isArray(category) ? category : [category];
+            if (categoryArray && categoryArray[0] !== "undefined") {
+                filter["category.categoryName"] = { $in: categoryArray };
+            }
+        }
         // Filter by subCategoryName (array of subCategory names)
-        // if (Array.isArray(subCategoryName) && subCategoryName.length > 0) {
-        //     filter["category.subCategory.subCategoryName"] = { $in: subCategoryName };
-        // }
-
+        if (subCategory) {
+            let subCategoryArray = Array.isArray(subCategory) ? subCategory : [subCategory];
+            if (subCategoryArray && subCategoryArray[0] !== "undefined") {
+                filter["category.subCategory.subCategoryName"] = { $in: subCategoryArray };
+            }
+        }
         // Filter by fields (array of fields inside subCategory)
         // if (Array.isArray(fields) && fields.length > 0) {
         //     filter["category.subCategory.fields"] = { $all: fields };
         // }
 
         // Filter by color(array of colors)
-        if (Array.isArray(color) && color.length > 0) {
-            filter["productVarieties.color"] = { $in: color };
+        if (color) {
+            let colorArray = Array.isArray(color) ? color : [color];
+            if (colorArray && colorArray[0] !== "undefined") {
+                filter["productVarieties.color"] = { $in: colorArray };
+            }
         }
 
         // Filter by price range (e.g., "100-500")
         if (priceRange) {
             const [min, max] = priceRange.split("-").map(Number);
+            console.log(min, max);
             filter["productVarieties.pricepermeter"] = { $gte: min, $lte: max };
         }
 
@@ -180,8 +186,19 @@ productController.getAll = async (req, res) => {
             filter["productVarieties.stock"] = { $gte: parseInt(stock, 10) };
         }
 
+        if (rating !== undefined) {
+            filter["averageRating"] = { $gte: parseFloat(rating) };
+        }
+
+        if (newArrival !== undefined) {
+            filter["newArrival"] = newArrival; // convert to boolean if it's coming from query
+        }
+
+        console.log("Applied Filters =>", filter);
+
         // Fetch filtered products
         const data = await Product.find(filter, null, options)
+            .sort({ createdAt: -1 })
             .populate("availableCoupons", "code discount")
             .populate("rating.userId", "name profile_pic")
             .select("-createdAt -updatedAt -__v");
@@ -394,6 +411,31 @@ productController.updateCategory = async (req, res) => {
     }
 }
 
+productController.ChangeNewArrivalStatus = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { newArrival } = req.body;
+
+        const product = await Product.findById(id);
+        if (!product) return res.status(404).send({
+            status: false,
+            msg: "Product not found."
+        });
+
+        product.newArrival = newArrival;
+        await product.save();
+
+        res.status(200).send({
+            status: true,
+            msg: "Product updated successfully.",
+            data: product
+        });
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ status: false, message: error.message, meta: error });
+    }
+}
+
 // Add coupon to product
 productController.addCoupon = async (req, res) => {
     try {
@@ -455,8 +497,15 @@ productController.removeCoupon = async (req, res) => {
 
 productController.addReview = async (req, res) => {
     try {
-        const { productId, rating, review } = req.body;
+        const { productId, rating, review, orderId } = req.body;
         const userId = req.user._id;
+
+        // find order with orderId and order.user : userId
+        const order = await Order.findOne({ orderId: orderId, user: userId });
+
+        if (!order) {
+            return res.status(404).send({ status: false, msg: "Order not found." });
+        }
 
         if (!mongoose.Types.ObjectId.isValid(productId)) {
             return res.status(400).send({ status: false, msg: "Invalid product ID ." });

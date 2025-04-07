@@ -14,6 +14,7 @@ adminController.getAllUsers = async (req, res) => {
         const skip = (page - 1) * limit;
         let users = null;
         let totalUsers;
+        
         if (isDeleted) {
             users = await Customer.find({ isDeleted: true }).skip(skip).limit(limit);
             totalUsers = await Customer.countDocuments({ isDeleted: true });

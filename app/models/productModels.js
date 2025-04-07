@@ -5,6 +5,7 @@ const ratingSchema = new mongoose.Schema({
     value: { type: Number, required: true, enum: [1, 2, 3, 4, 5] },
     review: { type: String, required: true },
     images: [{ type: String }],
+    orderId: { type: String }
 });
 
 const productSchema = new mongoose.Schema({
@@ -42,9 +43,10 @@ const productSchema = new mongoose.Schema({
             inBulk: { type: Boolean, default: true },
             inAuction: { type: Boolean, default: false },
             isAvailable: { type: Boolean, default: true },
-            newArrival: { type: Boolean, default: false },
         }
     ],
+    newArrival: { type: Boolean, default: false },
+    bestDeals: { type: Boolean, default: false },
     offers: { type: String },
     discount: { type: Number, min: 0, max: 100, default: 0 },
     rating: [ratingSchema],

@@ -10,6 +10,12 @@ const orderController = {};
 orderController.create = async (req, res) => {
     try {
         const { paymentMethod } = req.body;
+        console.log(paymentMethod)
+
+        if (!paymentMethod) {
+            return res.status(400).send({ status: false, msg: 'Please Select a Payment Method' });
+        }
+
 
         const customer = await Customer.findById(req.user._id)
             .populate({
