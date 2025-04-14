@@ -14,12 +14,13 @@ module.exports = (router) => {
     ]), verifyAdminToken, productController.editProductById);
 
     // Add New Variety to Existing Product 
-    router.put('/product/addVariety/:id', upload.fields([
+    router.put('/product/addVariety/:id', verifyAdminToken, upload.fields([
         { name: "productImages", maxCount: 10 },
-    ]), verifyAdminToken, productController.addNewVariety);
+    ]), productController.addNewVariety);
 
     // Update Product Category
     router.patch('/product/updateCategory/:id', verifyAdminToken, productController.updateCategory);
+    router.patch('/product/:id/arrivals', verifyAdminToken, productController.changeArrival);
 
     //Get All Products
     router.get('/getAllProducts', productController.getAll);

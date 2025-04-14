@@ -8,7 +8,7 @@ const orderSchema = new mongoose.Schema({
             product: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
             color: { type: String, required: true },
             quantity: { type: Number, required: true, },
-            price: { type: Number, required: true }
+            price: { type: Number, required: true },
         }
     ],
     transactionId: {
@@ -26,9 +26,27 @@ const orderSchema = new mongoose.Schema({
         phone: Number
     },
     payment: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
-    orderStatus: { type: String, enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"], default: "Pending" },
+    // orderStatus: { type: String, enum: ["Pending", "Processing", "Shipped", "Delivered", "Cancelled"], default: "Pending" },
     isPaid: { type: Boolean, default: false },
     paidAt: Date,
+    trackingDetails: [
+        {
+            status: {
+                type: String,
+                enum: ["Ordered Placed", "Ongoing", "Shipped", "Delivered", "Custom"],
+                required: true,
+                default: "Ordered Placed"
+            },
+            message: { type: String },
+            time: { type: Date, required: true },
+            isError: { type: Boolean, default: false },
+            type: {
+                type: String,
+                enum: ["update", "delay", "custom"],
+                default: "update"
+            }
+        }
+    ]
 }, { timestamps: true }
 );
 

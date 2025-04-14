@@ -26,10 +26,13 @@ customerController.signByPassword = async (req, res) => {
             });
         }
         const user = await Customer.findOne({ email })
+            .populate("address", "savedAddresses")
             .populate({
-                path: "address",
-                select: "savedAddresses"
-            })
+                path: "orderHistory",
+                model: "Order"
+            });
+
+
         if (!user) {
             return res.status(404).json({
                 status: false,

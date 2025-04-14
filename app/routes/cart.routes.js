@@ -9,5 +9,6 @@ module.exports = (router) => {
     router.post('/user/remove-from-cart', verifyUserToken, cartController.removeFromCart);
     router.post('/user/move-to-wishlist', verifyUserToken, cartController.moveToWishlist);
     router.post('/user/apply-coupon', verifyUserToken, cartController.applyCoupon);
+    router.post('/user/remove-coupon', verifyUserToken, cartController.removeCoupon);
     router.get('/user/cart/totalprice', verifyUserToken, cartController.getTotalPrice);
 };

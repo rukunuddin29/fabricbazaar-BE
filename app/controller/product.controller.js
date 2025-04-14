@@ -149,19 +149,21 @@ productController.getAll = async (req, res) => {
         const filter = {};
 
         // Filter by category (array of category names)
+        console.log(category)
         if (category) {
             let categoryArray = Array.isArray(category) ? category : [category];
             if (categoryArray && categoryArray[0] !== "undefined") {
                 filter["category.categoryName"] = { $in: categoryArray };
             }
         }
-        // Filter by subCategoryName (array of subCategory names)
+        // Filter by subCategoryName (array of subCategory names) 
         if (subCategory) {
             let subCategoryArray = Array.isArray(subCategory) ? subCategory : [subCategory];
             if (subCategoryArray && subCategoryArray[0] !== "undefined") {
-                filter["category.subCategory.subCategoryName"] = { $in: subCategoryArray };
-            }
+                filter["category.subCategory.subCategoryName"] = { $in: subCategoryArray }
+            };
         }
+
         // Filter by fields (array of fields inside subCategory)
         // if (Array.isArray(fields) && fields.length > 0) {
         //     filter["category.subCategory.fields"] = { $all: fields };
@@ -191,8 +193,10 @@ productController.getAll = async (req, res) => {
             filter["averageRating"] = { $gte: parseFloat(rating) };
         }
 
-        if (newArrival !== undefined) {
-            filter["newArrival"] = newArrival; // convert to boolean if it's coming from query
+        console.log(newArrival);
+
+        if (newArrival === 'true') {
+            filter["newArrival"] = true;
         }
 
         console.log("Applied Filters =>", filter);
@@ -575,6 +579,30 @@ productController.deleteReview = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
+    }
+}
+
+productController.changeArrival = async (req, res) => {
+    const id = req.params.id;
+
+    try {
+        if (!id) {
+            return res.status(400).send({ status: false, msg: "Please Provide Valid Product-ID." });
+        }
+
+        const product = await Product.findById(id);
+
+        if (!product) {
+            return res.status(404).send({ status: false, msg: "Product not found." });
+        }
+        product.newArrival = !product.newArrival;
+
+        await product.save();
+
+        return res.status(200).send({ status: true, msg: "Arrival status changed successfully.", data: product });
+    } catch (error) {
+        console.log(error)
+        return res.status(500).send({ status: false, error: error, message: "Internal Server Error" })
     }
 }
 

@@ -86,6 +86,13 @@ orderController.create = async (req, res) => {
             return res.status(400).send({ status: false, message: 'Some Products are out of stock', failedBuyProductId });
         }
 
+        const trackingDetails = {
+            status: "Ordered Placed",
+            type: "update",
+            time: new Date().toLocaleString(),
+            message: "Your order has been placed successfully."
+        }
+
         const newOrder = new Order({
             user: req.user._id,
             items,
@@ -93,6 +100,7 @@ orderController.create = async (req, res) => {
             transactionId,
             totalAmount: userCart.totalPrice,
             shippingAddress,
+            trackingDetails
         });
 
         let newPayment;
@@ -138,6 +146,88 @@ orderController.create = async (req, res) => {
     }
 };
 
+orderController.getUserOrderHistory = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const customerId = req.user._id;
+        const orderStatus = req.query.orderStatus;
+
+        let query = {};
+        if (orderStatus) query.orderStatus = orderStatus;
+        if (customerId) query.user = customerId;
+
+        const skip = (page - 1) * limit;
+
+        const orders = await Order.find(query)
+            .populate({ path: 'payment', select: 'paymentStatus' })
+            .populate({
+                path: 'items.product',
+                select: 'name description productVarieties'
+            })
+            .populate({
+                path: 'user',
+                select: 'name customerId email phone profile_pic'
+            });
+
+        let flattenedOrders = [];
+
+        // Loop through each order
+        orders.forEach(order => {
+            order.items.forEach(item => {
+                const matchedVarieties = item.product?.productVarieties?.filter(
+                    variety => variety.color === item.color
+                ) || [];
+
+                const productDetails = item.product?.toObject?.() || {};
+                delete productDetails.productVarieties;
+
+                const rawItem = item.toObject();
+                delete rawItem.product;
+
+                flattenedOrders.push({
+                    _id: order._id,
+                    user: order.user,
+                    payment: order.payment,
+                    orderStatus: order.orderStatus,
+                    shippingAddress: order.shippingAddress,
+                    trackingDetails: order.trackingDetails,
+                    createdAt: order.createdAt,
+                    updatedAt: order.updatedAt,
+                    isPaid: order.isPaid,
+                    paidAt: order.paidAt,
+                    item: {
+                        ...rawItem,
+                        ...productDetails,
+                        productVarieties: matchedVarieties
+                    }
+                });
+            });
+        });
+
+        const total = flattenedOrders.length;
+        const paginatedOrders = flattenedOrders.slice(skip, skip + limit);
+
+        res.status(200).json({
+            status: true,
+            message: "Order Items Fetched Successfully",
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            totalItems: total,
+            orders: paginatedOrders
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            status: false,
+            message: 'Internal Server Error',
+            meta: error.message || error
+        });
+    }
+};
+
+
 orderController.getAllOrder = async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
@@ -151,16 +241,43 @@ orderController.getAllOrder = async (req, res) => {
 
         const skip = (page - 1) * limit;
 
-        const orders = await Order.find(query)
-            .populate({ path: 'payment', select: 'paymentStatus' })
+        let orders = await Order.find(query)
+            .populate({ path: 'payment', select: 'paymentStatus paymentMethod' })
             .populate({
                 path: 'user',
                 select: 'name customerId email phone profile_pic'
             })
+            .populate({
+                path: 'items.product',
+                select: 'name productVarieties'
+            })
+            .sort({ createdAt: -1 })
             .skip(skip)
             .limit(limit);
 
+
         const total = await Order.countDocuments(query);
+
+        orders = orders.map(order => {
+            const updatedItems = order.items.map(item => {
+                const matchedVariety = item.product?.productVarieties?.find(
+                    variety => variety.color === item.color
+                );
+
+                return {
+                    ...item.toObject(),
+                    product: {
+                        ...item.product.toObject(),
+                        productVarieties: matchedVariety ? [matchedVariety] : []
+                    }
+                };
+            });
+
+            return {
+                ...order.toObject(),
+                items: updatedItems
+            };
+        });
 
         res.status(200).json({
             status: true,
@@ -174,7 +291,7 @@ orderController.getAllOrder = async (req, res) => {
         console.error(error);
         res.status(500).json({ status: false, message: 'Internal Server Error', meta: error });
     }
-}
+};
 
 orderController.deleteorder = async (req, res) => {
     try {
@@ -202,28 +319,46 @@ orderController.deleteorder = async (req, res) => {
         console.error(error);
         res.status(500).json({ status: false, message: 'Internal Server Error', meta: error });
     }
-}
+};
 
 orderController.changeStatus = async (req, res) => {
     try {
         const orderId = req.params.id;
-        const { status } = req.body;
+        const { status, message, isError = false, type = "update" } = req.body;
 
-        console.log(orderId);
         const order = await Order.findById(orderId);
 
         if (!order) {
             return res.status(404).json({ status: false, message: 'Order not found' });
         }
 
+        // Push new tracking log into the array
+        const newTrackingEntry = {
+            status,
+            message,
+            time: new Date(),
+            isError,
+            type
+        };
+
+        // Add the tracking detail to the array
+        order.trackingDetails.push(newTrackingEntry);
+
+        // Optionally update the current status (for latest status overview)
         order.orderStatus = status;
+
         await order.save();
 
-        res.status(200).json({ status: true, message: 'Order status updated successfully', order });
+        res.status(200).json({
+            status: true,
+            message: 'Order status updated successfully',
+            order
+        });
     } catch (error) {
         console.error(error);
         res.status(500).json({ status: false, message: 'Internal Server Error', meta: error });
     }
-}
+};
+
 
 module.exports = orderController

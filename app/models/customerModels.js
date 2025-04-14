@@ -13,11 +13,7 @@ const CustomerSchema = new mongoose.Schema(
         address: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
         wishlist: { type: mongoose.Schema.Types.ObjectId, ref: "Wishlist" },
         cart: { type: mongoose.Schema.Types.ObjectId, ref: "Cart" },
-        orderHistory: [{
-            orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
-            // status: { type: String, default: "Processing", enum: ["Processing", "Shipped", "Delivered", "Cancelled"] },
-            // purchaseAt: { type: String }
-        }],
+        orderHistory: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }],
         // address: [{
 
         //     street: String,

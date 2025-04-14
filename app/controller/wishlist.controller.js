@@ -51,6 +51,8 @@ wishlistControllers.remove = async (req, res) => {
         const { id } = req.query;
         const _id = req.user._id;
 
+        console.log(id);
+
         if (!id) {
             return res.status(400).send({ status: false, msg: "Product ID is required." });
         }
@@ -58,7 +60,7 @@ wishlistControllers.remove = async (req, res) => {
         const user = await Customer.findOne({ _id });
         const wishlist = await Wishlist.findById(user.wishlist)
 
-        const productIndex = wishlist.products.findIndex((item) => item._id.toString() === id);
+        const productIndex = wishlist.products.findIndex((item) => item.productId._id.toString() === id);
         if (productIndex === -1) {
             return res.status(404).send({ status: false, msg: "Product not found in wishlist." });
         }

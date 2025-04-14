@@ -2,7 +2,8 @@ const Customer = require("../models/customerModels");
 const Cart = require("../models/cartModels");
 const Product = require("../models/productModels");
 const Wishlist = require("../models/wishlistModels");
-const Coupon = require('../models/couponModels')
+const Coupon = require('../models/couponModels');
+const mongoose = require("mongoose");
 
 const cartController = {};
 
@@ -198,8 +199,8 @@ cartController.moveToWishlist = async (req, res) => {
 
 cartController.applyCoupon = async (req, res) => {
     try {
-        const { couponCode } = req.body;
         const _id = req.user._id;
+        const { couponCode } = req.body;
 
         if (!couponCode) {
             return res.status(400).send({
@@ -299,6 +300,59 @@ cartController.getTotalPrice = async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
+    }
+}
+
+cartController.removeCoupon = async (req, res) => {
+    try {
+        const userId = req.user._id;
+        const { couponCode } = req.body;
+
+        if (!couponCode) {
+            return res.status(400).send({
+                status: false,
+                message: "Please provide a coupon code.",
+            });
+        }
+
+        // Fetch coupon
+        const coupon = await Coupon.findOne({ code: couponCode });
+        if (!coupon) {
+            return res.status(404).send({ status: false, msg: "Coupon not found." });
+        }
+
+        const cart = await Cart.findOne({ userId });
+        if (!cart) {
+            return res.status(404).send({ status: false, msg: "Cart not found for the user." });
+        }
+
+        let updatedProductIds = [];
+
+        // Update cart products
+        cart.products = cart.products.map(product => {
+            if (
+                product.appliedCoupon &&
+                product.appliedCoupon._id &&
+                product.appliedCoupon._id.toString() === coupon._id.toString()
+            ) {
+                product.appliedCoupon = undefined;
+                product.couponDiscountedPrice = 0;
+                updatedProductIds.push(product.productId);
+            }
+            return product;
+        });
+
+        await cart.save();
+
+        return res.status(200).send({
+            status: true,
+            msg: "Coupon removed from all applicable products in user's cart.",
+            data: cart,
+        });
+
+    } catch (error) {
+        console.log(error);
+        return res.status(500).send({ status: false, msg: "Internal Server Error", error: error });
     }
 }
 

@@ -96,4 +96,23 @@ couponControllers.edit = async (req, res) => {
     }
 };
 
+couponControllers.editExpiryDate = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { expirationDate } = req.body;
+
+        const coupon = await Coupon.findById(id);
+        if (!coupon) return res.status(404).send({ status: false, msg: "Coupon not found." });
+
+        coupon.expirationDate = expirationDate || coupon.expirationDate;
+
+        await coupon.save();
+
+        return res.status(200).send({ status: true, msg: "Coupon updated successfully.", data: coupon });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send({ status: false, msg: error.message });
+    }
+};
+
 module.exports = couponControllers;

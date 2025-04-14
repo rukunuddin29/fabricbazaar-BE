@@ -9,4 +9,5 @@ module.exports = (router) => {
 
     // DONE : When Any coupon is deleted remove the coupon from "Every Product" too
     router.put("/coupon/:id", verifyAdminToken, couponControllers.edit);
+    router.patch("/coupon/:id", verifyAdminToken, couponControllers.editExpiryDate);
 };
