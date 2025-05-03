@@ -35,16 +35,16 @@ const productSchema = new mongoose.Schema({
     },
     productVarieties: [
         {
-            images: [{ type: String, required: true }],
+            images: [{ type: String }],
             color: { type: String, required: true },
             pricepermeter: { type: Number, required: true },
             stock: { type: Number, required: true },
             discountedPrice: { type: Number },
-            inBulk: { type: Boolean, default: true },
-            inAuction: { type: Boolean, default: false },
             isAvailable: { type: Boolean, default: true },
         }
     ],
+    inBulk: { type: Boolean, default: true },
+    inAuction: { type: Boolean, default: false },
     newArrival: { type: Boolean, default: false },
     bestDeals: { type: Boolean, default: false },
     offers: { type: String },

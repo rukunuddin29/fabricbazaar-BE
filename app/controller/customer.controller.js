@@ -99,7 +99,7 @@ customerController.signinByOtp = async (req, res) => {
         const newOtp = new Otp({ email: email, otp, expiresAt: otpExpiresAt });
         await newOtp.save();
 
-        // await sendMail(email, "Email Verification Otp ", otp);
+        await sendMail(email, "Email Verification Otp ", otp);
 
         return res.status(200).send({
             message: `OTP sent successfully`,
@@ -148,7 +148,7 @@ customerController.signup = async (req, res) => {
         await newOtp.save();
 
         // UnComment when UserName and Password are provided
-        // await sendMail(email, "Email Verification Otp ", otp);
+        await sendMail(email, "Email Verification Otp ", otp);
 
         return res.status(200).send({
             message: `OTP sent successfully`,

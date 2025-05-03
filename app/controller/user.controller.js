@@ -42,7 +42,7 @@ userController.login = async (req, res) => {
 };
 
 userController.register = async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, access } = req.body;
     try {
         if (!email && !password && !role) {
             return res.status(404).json({
@@ -57,15 +57,29 @@ userController.register = async (req, res) => {
         }
         const user = await User.findOne({ email });
 
-        // if (role === "superadmin") {
-        //     const superAdminUser = await User.findOne({ role: "superadmin" });
-        //     if (superAdminUser) {
-        //         return res.status(400).json({
-        //             status: false,
-        //             message: "SuperAdmin Already Exist"
-        //         });
-        //     }
-        // }
+        let accessArr = [];
+
+        if (role === "admin") {
+            if (!access) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Please Provide Access Details"
+                });
+            }
+            // check if access is array or not and convert if not
+            if (!Array.isArray(access)) {
+                access = [access];
+            }
+            // check if access is valid or not
+            const validAccess = ["payment", "orders", "customer", "products"];
+            if (access.some((item) => !validAccess.includes(item))) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Invalid Access"
+                });
+            }
+            accessArr = access;
+        }
         if (user) {
             return res.status(400).json({
                 status: false,
@@ -73,7 +87,7 @@ userController.register = async (req, res) => {
             });
         }
         // if(user.)
-        const newUser = new User({ name, email, password, role });
+        const newUser = new User({ name, email, password, role, access: accessArr });
         if (password) {
             newUser.password = newUser.generateHash(password);
         }

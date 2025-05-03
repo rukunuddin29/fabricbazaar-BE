@@ -6,6 +6,9 @@ const Category = require("../models/categoryModels");
 const Product = require("../models/productModels");
 const Customer = require('../models/customerModels');
 const Order = require('../models/orderModels');
+const XLSX = require("xlsx");
+const fs = require("fs");
+const path = require("path");
 
 const productController = {};
 
@@ -136,7 +139,7 @@ productController.addProduct = async (req, res) => {
 productController.getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const { category, subCategory, fields, color, priceRange, stock, rating, newArrival } = req.query;
+    const { category, subCategory, color, priceRange, stock, rating, newArrival, search } = req.query;
 
     // console.log(color);
     try {
@@ -148,7 +151,6 @@ productController.getAll = async (req, res) => {
         };
         const filter = {};
 
-        // Filter by category (array of category names)
         console.log(category)
         if (category) {
             let categoryArray = Array.isArray(category) ? category : [category];
@@ -156,7 +158,7 @@ productController.getAll = async (req, res) => {
                 filter["category.categoryName"] = { $in: categoryArray };
             }
         }
-        // Filter by subCategoryName (array of subCategory names) 
+
         if (subCategory) {
             let subCategoryArray = Array.isArray(subCategory) ? subCategory : [subCategory];
             if (subCategoryArray && subCategoryArray[0] !== "undefined") {
@@ -164,12 +166,6 @@ productController.getAll = async (req, res) => {
             };
         }
 
-        // Filter by fields (array of fields inside subCategory)
-        // if (Array.isArray(fields) && fields.length > 0) {
-        //     filter["category.subCategory.fields"] = { $all: fields };
-        // }
-
-        // Filter by color(array of colors)
         if (color) {
             let colorArray = Array.isArray(color) ? color : [color];
             if (colorArray && colorArray[0] !== "undefined") {
@@ -193,10 +189,21 @@ productController.getAll = async (req, res) => {
             filter["averageRating"] = { $gte: parseFloat(rating) };
         }
 
-        console.log(newArrival);
+        // console.log(newArrival);
 
         if (newArrival === 'true') {
             filter["newArrival"] = true;
+        }
+
+        if (search && search !== "undefined") {
+            const regex = new RegExp(search, "i");
+            filter["$or"] = [
+                { name: regex },
+                { "category.categoryName": regex },
+                { "category.subCategory.subCategoryName": regex },
+                { pattern: regex },
+                { fabricType: regex },
+            ];
         }
 
         console.log("Applied Filters =>", filter);
@@ -208,9 +215,6 @@ productController.getAll = async (req, res) => {
             .populate("rating.userId", "name profile_pic")
             .select("-createdAt -updatedAt -__v");
 
-        // const data = await Product.find().skip(skip).limit(limit);
-
-        // const totalDataCount = await Product.countDocuments();
         const totalDataCount = await Product.countDocuments(filter);
 
         const response = {
@@ -605,5 +609,10 @@ productController.changeArrival = async (req, res) => {
         return res.status(500).send({ status: false, error: error, message: "Internal Server Error" })
     }
 }
+
+// productController.bulkupload = async (req,res) =>{
+//     To extract data from Excel file     
+// }
+
 
 module.exports = productController;
