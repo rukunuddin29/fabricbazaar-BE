@@ -4,7 +4,7 @@ const fieldSchema = new mongoose.Schema({
 	key: { type: String, required: true },
 	defaultValue: { type: String, default: "" },
 	type: { type: String, enum: ["text", "number", "select"], default: "text" },
-	options: [{ type: String }], //required for type select
+	options: [{ type: String }],
 });
 
 const subCategorySchema = new mongoose.Schema({
@@ -25,6 +25,6 @@ const categorySchema = new mongoose.Schema(
 
 categorySchema.index({ name: 1 });
 // subCategorySchema.index({ subCategoryName: 1 });
-categorySchema.index({ createdAt: -1 });
+// categorySchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model("Category", categorySchema);

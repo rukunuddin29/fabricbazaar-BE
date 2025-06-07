@@ -21,6 +21,7 @@ categoryControllers.create = async (req, res) => {
     }
 };
 
+
 // Delete a category
 categoryControllers.delete = async (req, res) => {
     try {

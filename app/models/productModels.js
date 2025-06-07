@@ -25,7 +25,6 @@ const productSchema = new mongoose.Schema({
             ]
         }
     ],
-
     fabricType: { type: String, required: true },
     pattern: { type: String },
     dimensions: {

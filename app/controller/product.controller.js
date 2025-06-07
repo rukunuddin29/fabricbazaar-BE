@@ -139,7 +139,7 @@ productController.addProduct = async (req, res) => {
 productController.getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const { category, subCategory, color, priceRange, stock, rating, newArrival, search } = req.query;
+    const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight } = req.query;
 
     // console.log(color);
     try {
@@ -151,7 +151,7 @@ productController.getAll = async (req, res) => {
         };
         const filter = {};
 
-        console.log(category)
+        // console.log(category)
         if (category) {
             let categoryArray = Array.isArray(category) ? category : [category];
             if (categoryArray && categoryArray[0] !== "undefined") {
@@ -206,10 +206,18 @@ productController.getAll = async (req, res) => {
             ];
         }
 
-        console.log("Applied Filters =>", filter);
-
+        if (weight) {
+            filter["$expr"] = {
+                $lte: [
+                    { $toDouble: "$dimensions.weight" },
+                    Number(weight)
+                ]
+            };
+        }
         // Fetch filtered products
-        
+
+        console.log(filter);
+
         const data = await Product.find(filter, null, options)
             .sort({ createdAt: -1 })
             .populate("availableCoupons", "code discount")
