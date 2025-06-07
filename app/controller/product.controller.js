@@ -209,6 +209,7 @@ productController.getAll = async (req, res) => {
         console.log("Applied Filters =>", filter);
 
         // Fetch filtered products
+        
         const data = await Product.find(filter, null, options)
             .sort({ createdAt: -1 })
             .populate("availableCoupons", "code discount")

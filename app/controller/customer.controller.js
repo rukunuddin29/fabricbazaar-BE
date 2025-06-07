@@ -422,5 +422,65 @@ customerController.googleAuth = async (req, res) => {
     }
 }
 
+customerController.fbLogin = async (req, res) => {
+    try {
+        const { access_token } = req.body;
+
+        const fbResponse = await axios.get(`https://graph.facebook.com/me`, {
+            params: {
+                fields: 'id,name,email,picture',
+                access_token,
+            },
+        });
+
+        const { id, name, email, picture } = fbResponse.data;
+
+        if (!email) {
+            return res.status(400).json({ message: 'Facebook account has no email associated.' });
+        }
+
+        let user = await Customer.findOne({ email });
+
+        if (!user) {
+            const customerCount = await Customer.countDocuments();
+            let customerId = `FBCUS${String(customerCount + 1).padStart(4, '0')}`;
+            user = await Customer.create({
+                customerId,
+                name,
+                email,
+                profile_pic: picture?.data?.url || '',
+                password: 'google-auth',
+            });
+
+            const address = new Address({ userId: user._id, savedAddresses: [] });
+            const wishlist = new Wishlist({ userId: user._id, products: [] });
+            const cart = new Cart({ userId: user._id, products: [] });
+            await address.save();
+            await wishlist.save();
+            await cart.save();
+            user.address  = address._id;
+            user.wishlist = wishlist._id;
+            user.cart = cart._id;
+            await user.save();
+        }
+        const authToken = jwt.sign({ userId: user._id, email: user.email }, config.jwtSecret, { expiresIn: "30d" });
+
+        return res.status(200).send({
+            message: "Google Verification SuccessFul",
+            status: true,
+            data: user,
+            token: authToken
+        });
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({
+            status: false,
+            message: "Internal server error",
+            meta: error
+        });
+    }
+}
+
 
 module.exports = customerController;
