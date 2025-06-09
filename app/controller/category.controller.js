@@ -56,6 +56,7 @@ categoryControllers.getAll = async (req, res) => {
             data: categories,
         });
     } catch (error) {
+        
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
     }

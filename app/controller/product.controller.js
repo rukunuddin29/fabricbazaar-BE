@@ -14,7 +14,7 @@ const productController = {};
 
 productController.addProduct = async (req, res) => {
     try {
-        const { name, description, price, category, stock, fabricType, color, weight, pattern, thickness, width } = req.body;
+        const { count, construction, name, description, price, category, stock, fabricType, color, weight, pattern, thickness, width } = req.body;
         // const product = new Product(req.body);
         // await product.save();
 
@@ -119,6 +119,8 @@ productController.addProduct = async (req, res) => {
             dimensions: { width, thickness, weight },
             pattern,
             productId,
+            count,
+            construction,
             productVarieties: [images]
         });
 
@@ -139,7 +141,7 @@ productController.addProduct = async (req, res) => {
 productController.getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight } = req.query;
+    const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight, count, construction } = req.query;
 
     // console.log(color);
     try {
@@ -150,6 +152,7 @@ productController.getAll = async (req, res) => {
             limit: limit
         };
         const filter = {};
+        let exprFilters = [];
 
         // console.log(category)
         if (category) {
@@ -172,6 +175,7 @@ productController.getAll = async (req, res) => {
                 filter["productVarieties.color"] = { $in: colorArray };
             }
         }
+
 
         // Filter by price range (e.g., "100-500")
         if (priceRange) {
@@ -215,6 +219,83 @@ productController.getAll = async (req, res) => {
             };
         }
         // Fetch filtered products
+
+
+        if (count && count !== "undefined") {
+            const [warpCount, weftCount] = count.split("x").map(Number);
+            if (!isNaN(warpCount) && !isNaN(weftCount)) {
+                exprFilters.push(
+                    {
+                        $lte: [
+                            {
+                                $toInt: {
+                                    $arrayElemAt: [
+                                        { $split: ["$count", "x"] },
+                                        0
+                                    ]
+                                }
+                            },
+                            warpCount
+                        ]
+                    },
+                    {
+                        $lte: [
+                            {
+                                $toInt: {
+                                    $arrayElemAt: [
+                                        { $split: ["$count", "x"] },
+                                        1
+                                    ]
+                                }
+                            },
+                            weftCount
+                        ]
+                    }
+                );
+            }
+        }
+
+        // Construction filter: expect input like "66X48"
+        if (construction && construction !== "undefined") {
+            const [warpConstruct, weftConstruct] = construction.split("x").map(Number);
+            if (!isNaN(warpConstruct) && !isNaN(weftConstruct)) {
+                exprFilters.push(
+                    {
+                        $lte: [
+                            {
+                                $toInt: {
+                                    $arrayElemAt: [
+                                        { $split: ["$construction", "x"] },
+                                        0
+                                    ]
+                                }
+                            },
+                            warpConstruct
+                        ]
+                    },
+                    {
+                        $lte: [
+                            {
+                                $toInt: {
+                                    $arrayElemAt: [
+                                        { $split: ["$construction", "x"] },
+                                        1
+                                    ]
+                                }
+                            },
+                            weftConstruct
+                        ]
+                    }
+                );
+            }
+        }
+
+        // Add $expr if needed
+        if (exprFilters.length > 0) {
+            filter["$expr"] = {
+                $and: exprFilters
+            };
+        }
 
         console.log(filter);
 

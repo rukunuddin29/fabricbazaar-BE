@@ -47,6 +47,8 @@ const productSchema = new mongoose.Schema({
     newArrival: { type: Boolean, default: false },
     bestDeals: { type: Boolean, default: false },
     offers: { type: String },
+    count: { type: String, default: "10x6", required: true },
+    construction: { type: String, default: "66x48", required: true },
     discount: { type: Number, min: 0, max: 100, default: 0 },
     rating: [ratingSchema],
     averageRating: { type: Number, default: 0 },
