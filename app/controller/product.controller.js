@@ -9,6 +9,7 @@ const Order = require('../models/orderModels');
 const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
+const { v4: uuidv4 } = require('uuid');
 
 const productController = {};
 
@@ -19,7 +20,7 @@ productController.addProduct = async (req, res) => {
         // await product.save();
 
         console.log("reqBody :", req.body);
-        if (!price || !category || !color || !name || !stock || !fabricType) {
+        if (!price || !category || !color || !name || !stock) {
             return res.status(400).send({
                 status: false,
                 message: "Please fill all the required fields.",
@@ -29,7 +30,6 @@ productController.addProduct = async (req, res) => {
                     ...(category ? {} : { category: "Category Is Required" }),
                     ...(stock ? {} : { stock: "Stock Is Required" }),
                     ...(color ? {} : { color: "Color Is Required" }),
-                    ...(fabricType ? {} : { fabricType: "Fabric Type Is Required" })
                 }
             });
         }
@@ -90,7 +90,8 @@ productController.addProduct = async (req, res) => {
         }
 
         const prdCount = await Product.countDocuments();
-        let productId = `PRD${String(prdCount + 1).padStart(3, '0')}`;
+        // let productId = `PRD${String(prdCount + 1).padStart(3, '0')}`;
+        let productId = `PRD${uuidv4().substring(0, 8)}`;
         // console.log("Product ID :", productId);
 
         // Handle product image upload
