@@ -91,7 +91,7 @@ productController.addProduct = async (req, res) => {
 
         const prdCount = await Product.countDocuments();
         // let productId = `PRD${String(prdCount + 1).padStart(3, '0')}`;
-        let productId = `PRD${uuidv4().substring(0, 8)}`;
+        let productId = `PRD${uuidv4().substring(0, 4)}${String(prdCount + 1).padStart(4, '0')}`;
         // console.log("Product ID :", productId);
 
         // Handle product image upload

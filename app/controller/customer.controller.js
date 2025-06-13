@@ -443,7 +443,7 @@ customerController.fbLogin = async (req, res) => {
 
         if (!user) {
             const customerCount = await Customer.countDocuments();
-            let customerId = `FBCUS${String(customerCount + 1).padStart(4, '0')}`;
+            let customerId = `FBCUS${String(customerCount + 1).padStart(4, '0')}${uuidv4().substring(0, 4)}`;
             user = await Customer.create({
                 customerId,
                 name,
