@@ -28,7 +28,7 @@ const productSchema = new mongoose.Schema({
     fabricType: { type: String, default: "Cotton" },
     pattern: { type: String },
     dimensions: {
-        weight: { type: String, default: "150" },
+        weight: { type: Number, default: 150 },
         thickness: { type: String, default: "0.8" },
         width: { type: String, default: "44" },
     },

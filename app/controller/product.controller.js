@@ -117,7 +117,7 @@ productController.addProduct = async (req, res) => {
             description,
             category: categoryData,
             fabricType,
-            dimensions: { width, thickness, weight },
+            dimensions: { width, thickness, weight: Number(weight) },
             pattern,
             productId,
             count,
@@ -144,7 +144,7 @@ productController.getAll = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight, count, construction } = req.query;
 
-    // console.log(color);
+    console.log(req.query);
     try {
         let skip = (page - 1) * limit;
 
@@ -212,11 +212,8 @@ productController.getAll = async (req, res) => {
         }
 
         if (weight) {
-            filter["$expr"] = {
-                $lte: [
-                    { $toDouble: "$dimensions.weight" },
-                    Number(weight)
-                ]
+            filter["dimensions.weight"] = {
+                $lte: Number(weight)
             };
         }
         // Fetch filtered products

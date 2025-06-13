@@ -89,7 +89,7 @@ orderController.create = async (req, res) => {
         const trackingDetails = {
             status: "Ordered Placed",
             type: "update",
-            time: new Date().toLocaleString(),
+            time: new Date(),
             message: "Your order has been placed successfully."
         }
 
@@ -188,6 +188,7 @@ orderController.getUserOrderHistory = async (req, res) => {
                 flattenedOrders.push({
                     _id: order._id,
                     user: order.user,
+                    orderId: order.orderId,
                     payment: order.payment,
                     orderStatus: order.orderStatus,
                     shippingAddress: order.shippingAddress,

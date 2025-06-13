@@ -458,7 +458,7 @@ customerController.fbLogin = async (req, res) => {
             await address.save();
             await wishlist.save();
             await cart.save();
-            user.address  = address._id;
+            user.address = address._id;
             user.wishlist = wishlist._id;
             user.cart = cart._id;
             await user.save();
@@ -466,7 +466,7 @@ customerController.fbLogin = async (req, res) => {
         const authToken = jwt.sign({ userId: user._id, email: user.email }, config.jwtSecret, { expiresIn: "30d" });
 
         return res.status(200).send({
-            message: "Google Verification SuccessFul",
+            message: "Facebook Verification SuccessFul",
             status: true,
             data: user,
             token: authToken
