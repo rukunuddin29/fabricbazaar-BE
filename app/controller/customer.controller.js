@@ -27,6 +27,8 @@ customerController.signByPassword = async (req, res) => {
         }
         const user = await Customer.findOne({ email })
             .populate("address", "savedAddresses")
+            .populate("wishlist", "products")
+            .populate("cart", "products")
             .populate({
                 path: "orderHistory",
                 model: "Order"
@@ -245,18 +247,27 @@ customerController.verifyOtp = async (req, res) => {
                 user.cart = cart._id;
                 await user.save();
             }
-            // Generate JWT token
+
+            const updatedUser = await Customer.findById(user._id)
+                .populate("address", "savedAddresses")
+                .populate("wishlist", "products")
+                .populate("cart", "products");
+
             const token = jwt.sign({ userId: user._id, phone: user.email }, config.jwtSecret, { expiresIn: "30d" });
 
             return res.status(200).send({
                 message: "OTP verified successfully",
                 status: true,
-                data: user,
+                data: updatedUser,
                 token
             });
         } else if (type == "login") {
 
-            const user = await Customer.findOne({ email });
+            const user = await Customer.findOne({ email })
+                .populate("wishlist", "products")
+                .populate("cart", "products")
+                .populate("address", "savedAddresses");
+
             if (!user) {
                 return res.status(404).json({
                     status: false,

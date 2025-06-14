@@ -216,79 +216,88 @@ productController.getAll = async (req, res) => {
                 $lte: Number(weight)
             };
         }
-        // Fetch filtered products
 
-
-        if (count && count !== "undefined") {
-            const [warpCount, weftCount] = count.split("x").map(Number);
-            if (!isNaN(warpCount) && !isNaN(weftCount)) {
-                exprFilters.push(
-                    {
-                        $lte: [
-                            {
-                                $toInt: {
-                                    $arrayElemAt: [
-                                        { $split: ["$count", "x"] },
-                                        0
-                                    ]
-                                }
-                            },
-                            warpCount
-                        ]
-                    },
-                    {
-                        $lte: [
-                            {
-                                $toInt: {
-                                    $arrayElemAt: [
-                                        { $split: ["$count", "x"] },
-                                        1
-                                    ]
-                                }
-                            },
-                            weftCount
-                        ]
-                    }
-                );
-            }
+        if (count) {
+            filter["count"] = count;
         }
 
-        // Construction filter: expect input like "66X48"
-        if (construction && construction !== "undefined") {
-            const [warpConstruct, weftConstruct] = construction.split("x").map(Number);
-            if (!isNaN(warpConstruct) && !isNaN(weftConstruct)) {
-                exprFilters.push(
-                    {
-                        $lte: [
-                            {
-                                $toInt: {
-                                    $arrayElemAt: [
-                                        { $split: ["$construction", "x"] },
-                                        0
-                                    ]
-                                }
-                            },
-                            warpConstruct
-                        ]
-                    },
-                    {
-                        $lte: [
-                            {
-                                $toInt: {
-                                    $arrayElemAt: [
-                                        { $split: ["$construction", "x"] },
-                                        1
-                                    ]
-                                }
-                            },
-                            weftConstruct
-                        ]
-                    }
-                );
-            }
+        if (construction) {
+            filter["construction"] = construction;
         }
+
+
+        // count filter:
+        // if (count && count !== "undefined") {
+        //     const [warpCount, weftCount] = count.split("x").map(Number);
+        //     if (!isNaN(warpCount) && !isNaN(weftCount)) {
+        //         exprFilters.push(
+        //             {
+        //                 $lte: [
+        //                     {
+        //                         $toInt: {
+        //                             $arrayElemAt: [
+        //                                 { $split: ["$count", "x"] },
+        //                                 0
+        //                             ]
+        //                         }
+        //                     },
+        //                     warpCount
+        //                 ]
+        //             },
+        //             {
+        //                 $lte: [
+        //                     {
+        //                         $toInt: {
+        //                             $arrayElemAt: [
+        //                                 { $split: ["$count", "x"] },
+        //                                 1
+        //                             ]
+        //                         }
+        //                     },
+        //                     weftCount
+        //                 ]
+        //             }
+        //         );
+        //     }
+        // }
+
+        // Construction filter:
+        // if (construction && construction !== "undefined") {
+        //     const [warpConstruct, weftConstruct] = construction.split("x").map(Number);
+        //     if (!isNaN(warpConstruct) && !isNaN(weftConstruct)) {
+        //         exprFilters.push(
+        //             {
+        //                 $lte: [
+        //                     {
+        //                         $toInt: {
+        //                             $arrayElemAt: [
+        //                                 { $split: ["$construction", "x"] },
+        //                                 0
+        //                             ]
+        //                         }
+        //                     },
+        //                     warpConstruct
+        //                 ]
+        //             },
+        //             {
+        //                 $lte: [
+        //                     {
+        //                         $toInt: {
+        //                             $arrayElemAt: [
+        //                                 { $split: ["$construction", "x"] },
+        //                                 1
+        //                             ]
+        //                         }
+        //                     },
+        //                     weftConstruct
+        //                 ]
+        //             }
+        //         );
+        //     }
+        // }
 
         // Add $expr if needed
+
         if (exprFilters.length > 0) {
             filter["$expr"] = {
                 $and: exprFilters

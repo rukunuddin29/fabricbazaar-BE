@@ -10,6 +10,7 @@ const CustomerSchema = new mongoose.Schema(
         dob: { type: String },
         phone: { type: String },
         profile_pic: { type: String },
+        
         address: { type: mongoose.Schema.Types.ObjectId, ref: "Address" },
         wishlist: { type: mongoose.Schema.Types.ObjectId, ref: "Wishlist" },
         cart: { type: mongoose.Schema.Types.ObjectId, ref: "Cart" },

@@ -71,7 +71,7 @@ cartController.addToCart = async (req, res) => {
 
         await cart.save();
 
-        return res.status(200).send({ status: true, msg: "Product added to cart." });
+        return res.status(200).send({ status: true, msg: "Product added to cart.", data: cart?.products });
     } catch (error) {
         console.error(error);
         res.status(500).send({ status: false, msg: error.message });
