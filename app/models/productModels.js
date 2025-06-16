@@ -39,7 +39,10 @@ const productSchema = new mongoose.Schema({
             pricepermeter: { type: Number, required: true },
             stock: { type: Number, required: true },
             discountedPrice: { type: Number },
-            isAvailable: { type: Boolean, default: true },
+            isAvailable: {
+                type: Boolean, default: true
+
+            },
         }
     ],
     inBulk: { type: Boolean, default: true },
@@ -76,6 +79,34 @@ productSchema.pre("save", function (next) {
     });
     next();
 });
+
+productSchema.pre("save", async function (next) {
+    if (this.isModified("availableCoupons") || this.isModified("productVarieties")) {
+        let maxDiscount = 0;
+
+        if (this.availableCoupons && this.availableCoupons.length > 0) {
+            const coupons = await mongoose.model("Coupon").find({ _id: { $in: this.availableCoupons } });
+
+            if (coupons.length) {
+                const validCoupons = coupons.filter(c => !c.expirationDate || !c.isActive || new Date(c.expirationDate) > new Date());
+                if (validCoupons.length > 0) {
+                    maxDiscount = Math.max(...validCoupons.map(c => c.discount));
+                }
+            }
+        }
+
+        this.productVarieties.forEach((variety) => {
+            if (typeof variety.pricepermeter === "number") {
+                variety.discountedPrice = parseFloat(
+                    (variety.pricepermeter - (variety.pricepermeter * maxDiscount) / 100).toFixed(2)
+                );
+            }
+        });
+    }
+
+    next();
+});
+
 
 module.exports = mongoose.model("Product", productSchema);
 

@@ -10,6 +10,7 @@ const XLSX = require("xlsx");
 const fs = require("fs");
 const path = require("path");
 const { v4: uuidv4 } = require('uuid');
+const { updateProductPrices } = require("../utils/Functions");
 
 const productController = {};
 
@@ -35,7 +36,6 @@ productController.addProduct = async (req, res) => {
         }
         // console.log(typeof category);
 
-        //::NOTDONE
         let newCategory;
         console.log("Before Parsing:", category);
         if (typeof category === "string") {
@@ -142,7 +142,7 @@ productController.addProduct = async (req, res) => {
 productController.getAll = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
-    const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight, count, construction } = req.query;
+    const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight, count, construction, bestDeals } = req.query;
 
     try {
         let skip = (page - 1) * limit;
@@ -153,6 +153,8 @@ productController.getAll = async (req, res) => {
         };
         const filter = {};
         let exprFilters = [];
+
+        await updateProductPrices();
 
         if (category) {
             let categoryArray;
@@ -204,7 +206,7 @@ productController.getAll = async (req, res) => {
         if (priceRange) {
             const [min, max] = priceRange.split("-").map(Number);
             console.log(min, max);
-            filter["productVarieties.pricepermeter"] = { $gte: min, $lte: max };
+            filter["productVarieties.pricepermeter"] = { $gte: parseFloat(min), $lte: parseFloat(max) };
         }
 
         if (stock !== undefined) {
@@ -217,6 +219,10 @@ productController.getAll = async (req, res) => {
 
         if (newArrival === 'true') {
             filter["newArrival"] = true;
+        }
+
+        if (bestDeals === 'true') {
+            filter["availableCoupons.0"] = { $exists: true };
         }
 
         if (search && search !== "undefined") {
@@ -413,7 +419,6 @@ productController.addNewVariety = async (req, res) => {
         const { id } = req.params;
         const { price, stock, color } = req.body;
         const { productImages } = req.files;
-        // console.log(id);
 
         const product = await Product.findOne({ _id: id });
 
