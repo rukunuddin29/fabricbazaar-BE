@@ -144,7 +144,6 @@ productController.getAll = async (req, res) => {
     const limit = parseInt(req.query.limit) || 20;
     const { category, subCategory, color, priceRange, stock, rating, newArrival, search, weight, count, construction } = req.query;
 
-    console.log(req.query);
     try {
         let skip = (page - 1) * limit;
 
@@ -155,20 +154,45 @@ productController.getAll = async (req, res) => {
         const filter = {};
         let exprFilters = [];
 
-        // console.log(category)
         if (category) {
-            let categoryArray = Array.isArray(category) ? category : [category];
+            let categoryArray;
+            if (typeof category === 'string') {
+                try {
+                    categoryArray = JSON.parse(category);
+                    if (!Array.isArray(categoryArray)) {
+                        categoryArray = [category];
+                    }
+                } catch {
+                    // Handle comma-separated string like "Cotton,Flex"
+                    categoryArray = category.includes(',') ? category.split(',') : [category];
+                }
+            } else if (Array.isArray(category)) {
+                categoryArray = category;
+            }
+
             if (categoryArray && categoryArray[0] !== "undefined") {
                 filter["category.categoryName"] = { $in: categoryArray };
             }
         }
 
         if (subCategory) {
-            let subCategoryArray = Array.isArray(subCategory) ? subCategory : [subCategory];
+            let subCategoryArray;
+            if (typeof subCategory === "string") {
+                try {
+                    subCategoryArray = JSON.parse(subCategory);
+                    if (!Array.isArray(subCategoryArray)) subCategoryArray = [subCategory];
+                } catch {
+                    subCategoryArray = subCategory.includes(',') ? subCategory.split(',') : [subCategory];
+                }
+            } else if (Array.isArray(subCategory)) {
+                subCategoryArray = subCategory;
+            }
+
             if (subCategoryArray && subCategoryArray[0] !== "undefined") {
-                filter["category.subCategory.subCategoryName"] = { $in: subCategoryArray }
-            };
+                filter["category.subCategory.subCategoryName"] = { $in: subCategoryArray };
+            }
         }
+
 
         if (color) {
             let colorArray = Array.isArray(color) ? color : [color];
@@ -177,15 +201,12 @@ productController.getAll = async (req, res) => {
             }
         }
 
-
-        // Filter by price range (e.g., "100-500")
         if (priceRange) {
             const [min, max] = priceRange.split("-").map(Number);
             console.log(min, max);
             filter["productVarieties.pricepermeter"] = { $gte: min, $lte: max };
         }
 
-        // Filter by stock availability
         if (stock !== undefined) {
             filter["productVarieties.stock"] = { $gte: parseInt(stock, 10) };
         }
@@ -193,8 +214,6 @@ productController.getAll = async (req, res) => {
         if (rating !== undefined) {
             filter["averageRating"] = { $gte: parseFloat(rating) };
         }
-
-        // console.log(newArrival);
 
         if (newArrival === 'true') {
             filter["newArrival"] = true;
@@ -337,7 +356,7 @@ productController.getAll = async (req, res) => {
 productController.editProductById = async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, description, price, stock, fabricType, color, weight, width, thickness, pattern } = req.body;
+        const { name, description, price, stock, fabricType, color, weight, width, thickness, pattern, count, construction } = req.body;
         const { productImages } = req.files;
         // console.log(id);
 
@@ -376,6 +395,8 @@ productController.editProductById = async (req, res) => {
         product.dimensions.weight = weight || product.dimensions.weight;
         product.dimensions.thickness = thickness || product.dimensions.thickness;
         product.dimensions.width = width || product.dimensions.width;
+        product.count = count || product.count;
+        product.construction = construction || product.construction;
 
         await product.save();
 

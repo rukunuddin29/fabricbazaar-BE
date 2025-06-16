@@ -414,13 +414,18 @@ customerController.googleAuth = async (req, res) => {
             await user.save();
         }
 
+        const updatedUser = await Customer.findById(user._id)
+            .populate("address", "savedAddresses")
+            .populate("wishlist", "products")
+            .populate("cart", "products");
+
         // Generate JWT Token
         const authToken = jwt.sign({ userId: user._id, email: user.email }, config.jwtSecret, { expiresIn: "30d" });
 
         return res.status(200).send({
             message: "Google Verification SuccessFul",
             status: true,
-            data: user,
+            data: updatedUser,
             token: authToken
         });
     } catch (error) {
@@ -474,12 +479,18 @@ customerController.fbLogin = async (req, res) => {
             user.cart = cart._id;
             await user.save();
         }
+
+        const updatedUser = await Customer.findById(user._id)
+            .populate("address", "savedAddresses")
+            .populate("wishlist", "products")
+            .populate("cart", "products");
+
         const authToken = jwt.sign({ userId: user._id, email: user.email }, config.jwtSecret, { expiresIn: "30d" });
 
         return res.status(200).send({
             message: "Facebook Verification SuccessFul",
             status: true,
-            data: user,
+            data: updatedUser,
             token: authToken
         });
 
